@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TrafficAI — Smart Traffic Control System</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1a2235;
+  --surface3: #1f2d45;
+  --border: #1e3050;
+  --accent: #00d4ff;
+  --accent2: #0099cc;
+  --green: #00e5a0;
+  --red: #ff4d6a;
+  --yellow: #ffb347;
+  --purple: #9b7cff;
+  --text: #e8f0fe;
+  --text2: #8ba3c7;
+  --text3: #4a6080;
+  --glow: 0 0 20px rgba(0,212,255,0.15);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px),
+    linear-gradient(rgba(0,212,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.015) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px;
+  background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse at 15% 25%, rgba(0,212,255,0.07) 0%, transparent 40%),
+    radial-gradient(ellipse at 85% 75%, rgba(155,124,255,0.07) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(0,229,160,0.03) 0%, transparent 55%);
+}
+#circuit-canvas{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0.35;}
+.app{display:flex;min-height:100vh;position:relative;z-index:1;}
+.sidebar{
+  width:260px;min-height:100vh;background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.logo{padding:28px 24px 20px;border-bottom:1px solid var(--border);}
+.logo-mark{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--accent);letter-spacing:-0.5px;}
+.logo-mark span{color:var(--text2);font-weight:400;font-size:13px;display:block;margin-top:2px;letter-spacing:0;}
+.nav{flex:1;padding:16px 0;}
+.nav-section{padding:8px 24px 4px;font-size:10px;font-weight:600;letter-spacing:2px;color:var(--text3);text-transform:uppercase;}
+.nav-item{
+  display:flex;align-items:center;gap:12px;padding:11px 24px;
+  cursor:pointer;transition:all 0.2s;color:var(--text2);font-size:14px;font-weight:400;position:relative;
+}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:rgba(0,212,255,0.07);}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);border-radius:0 2px 2px 0;}
+.nav-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.sidebar-footer{padding:16px 24px;border-top:1px solid var(--border);}
+.db-status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);}
+.db-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.main{flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.page-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.badge{background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500;}
+.content{flex:1;padding:28px 32px;}
+.page{display:none;}
+.page.active{display:block;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:20px;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;
+}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--glow);}
+.stat-card::after{content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:50%;filter:blur(30px);opacity:0.15;}
+.stat-card.blue::after{background:var(--accent);}
+.stat-card.green::after{background:var(--green);}
+.stat-card.purple::after{background:var(--purple);}
+.stat-card.yellow::after{background:var(--yellow);}
+.stat-label{font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;}
+.stat-value{font-family:'Syne',sans-serif;font-weight:800;font-size:32px;margin:8px 0 4px;}
+.stat-sub{font-size:12px;color:var(--text3);}
+.stat-icon{position:absolute;top:20px;right:20px;font-size:22px;opacity:0.6;}
+.panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.panel.full{grid-column:1/-1;}
+.panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.panel-title{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;}
+.panel-body{padding:20px;}
+.btn{padding:9px 18px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-primary:hover{background:#33ddff;box-shadow:0 0 15px rgba(0,212,255,0.3);}
+.btn-danger{background:rgba(255,77,106,0.15);color:var(--red);border:1px solid rgba(255,77,106,0.3);}
+.btn-danger:hover{background:rgba(255,77,106,0.25);}
+.btn-success{background:rgba(0,229,160,0.15);color:var(--green);border:1px solid rgba(0,229,160,0.3);}
+.btn-success:hover{background:rgba(0,229,160,0.25);}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-warning{background:rgba(255,179,71,0.15);color:var(--yellow);border:1px solid rgba(255,179,71,0.3);}
+.btn-warning:hover{background:rgba(255,179,71,0.25);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-group.full{grid-column:1/-1;}
+label{font-size:12px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;}
+input,select,textarea{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;
+  transition:border-color 0.2s;width:100%;outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+select option{background:var(--surface2);}
+textarea{resize:vertical;min-height:80px;}
+.form-actions{margin-top:18px;display:flex;gap:10px;}
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid var(--border);}
+td{padding:12px 14px;border-bottom:1px solid rgba(30,48,80,0.5);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.cell-id{font-family:monospace;color:var(--accent);font-size:12px;}
+.cell-name{font-weight:500;}
+.actions-cell{display:flex;gap:6px;}
+.tag{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.tag-blue{background:rgba(0,212,255,0.1);color:var(--accent);}
+.tag-green{background:rgba(0,229,160,0.1);color:var(--green);}
+.tag-red{background:rgba(255,77,106,0.1);color:var(--red);}
+.tag-yellow{background:rgba(255,179,71,0.1);color:var(--yellow);}
+.tag-purple{background:rgba(155,124,255,0.1);color:var(--purple);}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;animation:slideUp 0.25s ease;}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;}
+.modal-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:20px;line-height:1;padding:4px;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:24px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+.concept-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;}
+.concept-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--accent);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.concept-title::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);}
+pre{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;color:#a8c7fa;overflow-x:auto;line-height:1.7;}
+.sql-keyword{color:#ff8c69;}
+.sql-type{color:#9b7cff;}
+.sql-string{color:#98c379;}
+.sql-comment{color:var(--text3);font-style:italic;}
+.norm-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+.norm-table th{background:var(--surface3);padding:8px 12px;text-align:left;color:var(--accent);font-size:11px;}
+.norm-table td{padding:8px 12px;border-bottom:1px solid var(--border);}
+.norm-table tr:last-child td{border-bottom:none;}
+.toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999;}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;min-width:260px;display:flex;align-items:center;gap:10px;animation:toastIn 0.3s ease;box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+.toast.success{border-color:rgba(0,229,160,0.3);}
+.toast.error{border-color:rgba(255,77,106,0.3);}
+@keyframes toastIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;}
+.search-bar input{background:none;border:none;outline:none;color:var(--text);font-size:13px;width:220px;}
+.search-bar::before{content:'🔍';font-size:13px;}
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:36px;margin-bottom:12px;}
+.empty p{font-size:14px;}
+.section-divider{margin:24px 0;border:none;border-top:1px solid var(--border);}
+.fade-in{animation:fadeIn 0.35s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.signal-box{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);}
+.signal-light{width:18px;height:18px;border-radius:50%;opacity:0.2;}
+.signal-light.on{opacity:1;box-shadow:0 0 10px currentColor;}
+.light-red{background:var(--red);color:var(--red);}
+.light-yellow{background:var(--yellow);color:var(--yellow);}
+.light-green{background:var(--green);color:var(--green);}
+.signal-dir{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+.signal-timer{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--accent);}
+.sim-canvas{background:#0d1520;border-radius:12px;border:1px solid var(--border);display:block;margin:0 auto;}
+.signals-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+@media(max-width:900px){.stats-grid{grid-template-columns:1fr 1fr;}.panel-grid{grid-template-columns:1fr;}.sidebar{width:220px;}}
+</style>
+</head>
+<body>
+
+<canvas id="circuit-canvas"></canvas>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">TrafficAI<span>Smart Traffic Control System</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Core</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)">
+        <span class="nav-icon">🏠</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('intersections',this)">
+        <span class="nav-icon">🚦</span> Intersections
+      </div>
+      <div class="nav-item" onclick="showPage('vehicles',this)">
+        <span class="nav-icon">🚗</span> Vehicles
+      </div>
+      <div class="nav-item" onclick="showPage('emergency',this)">
+        <span class="nav-icon">🚨</span> Emergency Units
+      </div>
+      <div class="nav-section">AI & Logs</div>
+      <div class="nav-item" onclick="showPage('simulation',this)">
+        <span class="nav-icon">🎮</span> Live Simulation
+      </div>
+      <div class="nav-item" onclick="showPage('logs',this)">
+        <span class="nav-icon">📋</span> Event Logs
+      </div>
+      <div class="nav-section">CS Concepts</div>
+      <div class="nav-item" onclick="showPage('algorithms',this)">
+        <span class="nav-icon">🧠</span> AI Algorithms
+      </div>
+      <div class="nav-item" onclick="showPage('datastructs',this)">
+        <span class="nav-icon">🗂️</span> Data Structures
+      </div>
+      <div class="nav-item" onclick="showPage('graphtheory',this)">
+        <span class="nav-icon">🕸️</span> Graph Theory
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="db-status">
+        <div class="db-dot"></div>
+        AI Engine Active
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-right">
+        <div class="badge">Mini Project v1.0</div>
+        <div style="font-size:13px;color:var(--text2);">HTML / CSS / JavaScript</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ===== DASHBOARD ===== -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid fade-in">
+          <div class="stat-card blue">
+            <div class="stat-icon">🚦</div>
+            <div class="stat-label">Intersections</div>
+            <div class="stat-value" id="stat-intersections">0</div>
+            <div class="stat-sub">Managed by AI</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon">🚗</div>
+            <div class="stat-label">Vehicles Tracked</div>
+            <div class="stat-value" id="stat-vehicles">0</div>
+            <div class="stat-sub">Registered in system</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-icon">🚨</div>
+            <div class="stat-label">Emergency Units</div>
+            <div class="stat-value" id="stat-emergency">0</div>
+            <div class="stat-sub">Registered</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-icon">📋</div>
+            <div class="stat-label">Events Logged</div>
+            <div class="stat-value" id="stat-logs">0</div>
+            <div class="stat-sub">Total records</div>
+          </div>
+        </div>
+
+        <div class="panel-grid fade-in">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Recent Intersections</div>
+              <button class="btn btn-ghost btn-sm" onclick="showPage('intersections',null)">View All</button>
+            </div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>ID</th><th>Location</th><th>Mode</th><th>Status</th></tr></thead>
+                  <tbody id="dash-intersections-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Recent Events</div>
+              <button class="btn btn-ghost btn-sm" onclick="showPage('logs',null)">View All</button>
+            </div>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Time</th><th>Event</th><th>Type</th></tr></thead>
+                  <tbody id="dash-logs-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel full fade-in">
+          <div class="panel-header"><div class="panel-title">🚨 Active Emergency Units</div></div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Unit ID</th><th>Type</th><th>Route</th><th>Priority</th><th>Status</th></tr></thead>
+                <tbody id="dash-emg-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== INTERSECTIONS ===== -->
+      <div class="page" id="page-intersections">
+        <div class="panel fade-in">
+          <div class="panel-header"><div class="panel-title">🚦 Add Intersection</div></div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Location Name</label>
+                <input id="i-name" placeholder="e.g. Hebbal Flyover Junction"/>
+              </div>
+              <div class="form-group">
+                <label>City Zone</label>
+                <select id="i-zone">
+                  <option>North</option><option>South</option><option>East</option><option>West</option><option>Central</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Number of Lanes</label>
+                <input type="number" id="i-lanes" placeholder="4" min="2" max="8"/>
+              </div>
+              <div class="form-group">
+                <label>Control Mode</label>
+                <select id="i-mode">
+                  <option>AI Adaptive</option><option>Fixed Timer</option><option>Manual</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Cycle Time (sec)</label>
+                <input type="number" id="i-cycle" placeholder="60" min="20" max="180"/>
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select id="i-status">
+                  <option>Active</option><option>Maintenance</option><option>Offline</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="addIntersection()">🚦 Add Intersection</button>
+              <button class="btn btn-ghost" onclick="clearIntersectionForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel fade-in" style="margin-top:20px;">
+          <div class="panel-header">
+            <div class="panel-title">All Intersections</div>
+            <div class="search-bar"><input id="search-intersections" placeholder="Search location..." oninput="searchIntersections()"/></div>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>IID</th><th>Location</th><th>Zone</th><th>Lanes</th><th>Cycle</th><th>Mode</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody id="intersections-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== VEHICLES ===== -->
+      <div class="page" id="page-vehicles">
+        <div class="panel fade-in">
+          <div class="panel-header"><div class="panel-title">🚗 Register Vehicle</div></div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Vehicle Number</label>
+                <input id="v-num" placeholder="KA-01-AB-1234"/>
+              </div>
+              <div class="form-group">
+                <label>Vehicle Type</label>
+                <select id="v-type">
+                  <option>Car</option><option>Bike</option><option>Bus</option><option>Truck</option><option>Auto</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Owner Name</label>
+                <input id="v-owner" placeholder="Owner full name"/>
+              </div>
+              <div class="form-group">
+                <label>Assigned Intersection</label>
+                <select id="v-intersection"></select>
+              </div>
+              <div class="form-group">
+                <label>Speed (km/h)</label>
+                <input type="number" id="v-speed" placeholder="40" min="0" max="200"/>
+              </div>
+              <div class="form-group">
+                <label>Priority Class</label>
+                <select id="v-priority">
+                  <option>Normal</option><option>High</option><option>Emergency</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="addVehicle()">🚗 Register Vehicle</button>
+              <button class="btn btn-ghost" onclick="clearVehicleForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel fade-in" style="margin-top:20px;">
+          <div class="panel-header"><div class="panel-title">All Vehicles</div></div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>VID</th><th>Number</th><th>Type</th><th>Owner</th><th>Intersection</th><th>Speed</th><th>Priority</th><th>Actions</th></tr></thead>
+                <tbody id="vehicles-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== EMERGENCY ===== -->
+      <div class="page" id="page-emergency">
+        <div class="panel fade-in">
+          <div class="panel-header"><div class="panel-title">🚨 Register Emergency Unit</div></div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Unit ID / Callsign</label>
+                <input id="e-callsign" placeholder="AMB-01 / FIRE-05 / POL-12"/>
+              </div>
+              <div class="form-group">
+                <label>Unit Type</label>
+                <select id="e-type">
+                  <option>Ambulance</option><option>Fire Engine</option><option>Police</option><option>Disaster Response</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>From Location</label>
+                <input id="e-from" placeholder="Origin point"/>
+              </div>
+              <div class="form-group">
+                <label>To Location</label>
+                <input id="e-to" placeholder="Destination / Hospital"/>
+              </div>
+              <div class="form-group">
+                <label>Priority Level</label>
+                <select id="e-priority">
+                  <option>Critical</option><option>High</option><option>Medium</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Assigned Intersection</label>
+                <select id="e-intersection"></select>
+              </div>
+              <div class="form-group full">
+                <label>Incident Description</label>
+                <textarea id="e-desc" placeholder="Describe the emergency situation..."></textarea>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-danger" onclick="addEmergency()">🚨 Dispatch Unit</button>
+              <button class="btn btn-ghost" onclick="clearEmergencyForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel fade-in" style="margin-top:20px;">
+          <div class="panel-header"><div class="panel-title">All Emergency Units</div></div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>EID</th><th>Callsign</th><th>Type</th><th>Route</th><th>Intersection</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody id="emergency-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SIMULATION ===== -->
+      <div class="page" id="page-simulation">
+        <div class="panel-grid fade-in">
+          <div class="panel full">
+            <div class="panel-header">
+              <div class="panel-title">🎮 Live Intersection Simulation</div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-success btn-sm" id="btn-start" onclick="startSim()">▶ Start</button>
+                <button class="btn btn-danger btn-sm" id="btn-stop" onclick="stopSim()">⏹ Stop</button>
+                <button class="btn btn-warning btn-sm" onclick="triggerEmergencySim()">🚨 Emergency</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="signals-row" id="signals-row"></div>
+              <canvas id="sim-canvas" class="sim-canvas" width="560" height="400"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== LOGS ===== -->
+      <div class="page" id="page-logs">
+        <div class="panel fade-in">
+          <div class="panel-header">
+            <div class="panel-title">📋 Event Log</div>
+            <button class="btn btn-danger btn-sm" onclick="clearLogs()">Clear All</button>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Log ID</th><th>Timestamp</th><th>Event</th><th>Intersection</th><th>Type</th><th>Details</th></tr></thead>
+                <tbody id="logs-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== AI ALGORITHMS ===== -->
+      <div class="page" id="page-algorithms">
+        <div class="panel fade-in">
+          <div class="panel-header"><div class="panel-title">🧠 AI Algorithms Used in Traffic Control</div></div>
+          <div class="panel-body">
+            <div class="concept-box">
+              <div class="concept-title">Greedy Algorithm — Signal Phase Optimization</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">At each cycle, the AI picks the lane with maximum queued vehicles to get green signal — a greedy local optimal choice.</p>
+              <pre><span class="sql-comment">// Greedy: Give green to most congested lane</span>
+<span class="sql-keyword">function</span> aiOptimize(lanes) {
+  <span class="sql-keyword">let</span> maxQueue = 0, bestLane = null;
+  <span class="sql-keyword">for</span> (let lane of lanes) {
+    <span class="sql-keyword">if</span> (lane.queueLength > maxQueue) {
+      maxQueue = lane.queueLength;
+      bestLane = lane;
+    }
+  }
+  <span class="sql-keyword">return</span> bestLane; <span class="sql-comment">// give green signal</span>
+}</pre>
+            </div>
+            <div class="concept-box">
+              <div class="concept-title">Priority Queue — Emergency Vehicle Preemption</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">Emergency vehicles use a Max-Priority Queue. Ambulance/Fire (Critical) always gets cleared first, overriding normal signal phases.</p>
+              <pre><span class="sql-comment">// Priority Queue — higher priority = served first</span>
+<span class="sql-keyword">class</span> PriorityQueue {
+  constructor() { <span class="sql-keyword">this</span>.heap = []; }
+  insert(unit) {
+    <span class="sql-keyword">this</span>.heap.push(unit);
+    <span class="sql-keyword">this</span>.heap.sort((a,b) => b.priority - a.priority);
+  }
+  extractMax() { <span class="sql-keyword">return this</span>.heap.shift(); }
+}
+<span class="sql-comment">// Critical=3, High=2, Medium=1</span></pre>
+            </div>
+            <div class="concept-box">
+              <div class="concept-title">Dijkstra's Algorithm — Shortest Emergency Route</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">When an emergency unit is dispatched, Dijkstra finds the shortest path through intersections, clearing signals along that route.</p>
+              <pre><span class="sql-comment">// Dijkstra's shortest path between intersections</span>
+<span class="sql-keyword">function</span> dijkstra(graph, source) {
+  <span class="sql-keyword">let</span> dist = {}, visited = <span class="sql-keyword">new</span> Set();
+  <span class="sql-keyword">for</span> (let node in graph) dist[node] = Infinity;
+  dist[source] = 0;
+  <span class="sql-keyword">while</span> (visited.size < Object.keys(graph).length) {
+    <span class="sql-keyword">let</span> u = minDist(dist, visited);
+    visited.add(u);
+    <span class="sql-keyword">for</span> (let v in graph[u]) {
+      <span class="sql-keyword">if</span> (dist[u] + graph[u][v] < dist[v])
+        dist[v] = dist[u] + graph[u][v];
+    }
+  }
+  <span class="sql-keyword">return</span> dist;
+}</pre>
+            </div>
+            <div class="concept-box">
+              <div class="concept-title">BFS — Intersection Reachability Check</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">Breadth-First Search checks which intersections are reachable from any point — used to detect road closures and alternate routes.</p>
+              <pre><span class="sql-comment">// BFS traversal on road network graph</span>
+<span class="sql-keyword">function</span> bfsReachable(graph, start) {
+  <span class="sql-keyword">let</span> visited = [], queue = [start];
+  <span class="sql-keyword">while</span> (queue.length) {
+    <span class="sql-keyword">let</span> node = queue.shift();
+    <span class="sql-keyword">if</span> (!visited.includes(node)) {
+      visited.push(node);
+      queue.push(...graph[node]);
+    }
+  }
+  <span class="sql-keyword">return</span> visited;
+}</pre>
+              <table class="norm-table" style="margin-top:14px;">
+                <thead><tr><th>Algorithm</th><th>Use Case</th><th>Complexity</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="tag tag-blue">Greedy</span></td><td>Signal phase optimization</td><td>O(N) per cycle</td></tr>
+                  <tr><td><span class="tag tag-red">Priority Queue</span></td><td>Emergency vehicle preemption</td><td>O(log N) insert</td></tr>
+                  <tr><td><span class="tag tag-purple">Dijkstra</span></td><td>Shortest emergency route</td><td>O(V² or E log V)</td></tr>
+                  <tr><td><span class="tag tag-green">BFS</span></td><td>Reachability / alternate routes</td><td>O(V + E)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== DATA STRUCTURES ===== -->
+      <div class="page" id="page-datastructs">
+        <div class="panel fade-in">
+          <div class="panel-header"><div class="panel-title">🗂️ Data Structures in Traffic Control</div></div>
+          <div class="panel-body">
+            <div class="concept-box">
+              <div class="concept-title">Queue — Vehicle Lane Management</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">Each traffic lane is modeled as a FIFO Queue. Vehicles enqueue when they arrive and dequeue when the signal turns green — classic queue behavior.</p>
+              <pre><span class="sql-comment">// FIFO Queue — Lane at an intersection</span>
+<span class="sql-keyword">class</span> LaneQueue {
+  constructor(dir) { <span class="sql-keyword">this</span>.lane=[]; <span class="sql-keyword">this</span>.dir=dir; }
+  arrive(vehicle) { <span class="sql-keyword">this</span>.lane.push(vehicle); }     <span class="sql-comment">// enqueue</span>
+  depart()        { <span class="sql-keyword">return this</span>.lane.shift(); }    <span class="sql-comment">// dequeue (green light)</span>
+  size()          { <span class="sql-keyword">return this</span>.lane.length; }
+}
+<span class="sql-comment">// North, South, East, West — 4 queues per intersection</span></pre>
+            </div>
+            <div class="concept-box">
+              <div class="concept-title">Stack — Signal History / Undo</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">Signal state changes are pushed onto a stack, enabling rollback to previous configuration during system faults.</p>
+              <pre><span class="sql-comment">// Stack — signal phase rollback</span>
+<span class="sql-keyword">class</span> SignalHistory {
+  constructor() { <span class="sql-keyword">this</span>.stack = []; }
+  save(state) { <span class="sql-keyword">this</span>.stack.push(state); }
+  undo()      { <span class="sql-keyword">return this</span>.stack.pop(); }
+  peek()      { <span class="sql-keyword">return this</span>.stack[<span class="sql-keyword">this</span>.stack.length-1]; }
+}</pre>
+            </div>
+            <div class="concept-box">
+              <div class="concept-title">Hash Map — Intersection Lookup</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">O(1) average-case lookup of any intersection's current signal state using intersection ID as key.</p>
+              <pre><span class="sql-comment">// HashMap — instant intersection state lookup</span>
+<span class="sql-keyword">const</span> intersectionMap = <span class="sql-keyword">new</span> Map();
+intersectionMap.set(<span class="sql-string">"I001"</span>, { state:<span class="sql-string">"green"</span>, timer:30 });
+intersectionMap.set(<span class="sql-string">"I002"</span>, { state:<span class="sql-string">"red"</span>,   timer:15 });
+
+<span class="sql-comment">// O(1) lookup — no loop needed</span>
+<span class="sql-keyword">let</span> signal = intersectionMap.get(<span class="sql-string">"I001"</span>);</pre>
+            </div>
+            <div class="concept-box">
+              <div class="concept-title">Linked List — Event Log Chain</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">System events (signal changes, emergency clears) are stored as a singly linked list — O(1) prepend for new events.</p>
+              <pre><span class="sql-comment">// Singly Linked List — event log</span>
+<span class="sql-keyword">class</span> EventNode {
+  constructor(event) { <span class="sql-keyword">this</span>.event=event; <span class="sql-keyword">this</span>.next=null; }
+}
+<span class="sql-keyword">class</span> EventLog {
+  constructor() { <span class="sql-keyword">this</span>.head=null; <span class="sql-keyword">this</span>.size=0; }
+  prepend(event) {
+    <span class="sql-keyword">let</span> node = <span class="sql-keyword">new</span> EventNode(event);
+    node.next = <span class="sql-keyword">this</span>.head;
+    <span class="sql-keyword">this</span>.head = node;
+    <span class="sql-keyword">this</span>.size++;
+  }
+}</pre>
+              <table class="norm-table" style="margin-top:14px;">
+                <thead><tr><th>Structure</th><th>Usage</th><th>Operation</th><th>Time</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="tag tag-blue">Queue</span></td><td>Vehicle lanes</td><td>Enqueue / Dequeue</td><td>O(1)</td></tr>
+                  <tr><td><span class="tag tag-yellow">Stack</span></td><td>Signal history</td><td>Push / Pop</td><td>O(1)</td></tr>
+                  <tr><td><span class="tag tag-green">Hash Map</span></td><td>Intersection lookup</td><td>Get / Set</td><td>O(1) avg</td></tr>
+                  <tr><td><span class="tag tag-purple">Linked List</span></td><td>Event log</td><td>Prepend</td><td>O(1)</td></tr>
+                  <tr><td><span class="tag tag-red">Max-Heap</span></td><td>Emergency priority</td><td>Insert / ExtractMax</td><td>O(log N)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== GRAPH THEORY ===== -->
+      <div class="page" id="page-graphtheory">
+        <div class="panel fade-in">
+          <div class="panel-header"><div class="panel-title">🕸️ Road Network as a Graph</div></div>
+          <div class="panel-body">
+            <div class="concept-box">
+              <div class="concept-title">Graph Representation — Road Network</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">Intersections = Vertices. Roads = Edges. Travel time / distance = Edge weights. Directed graph for one-way roads.</p>
+              <pre><span class="sql-comment">// Weighted Directed Graph — Road Network</span>
+<span class="sql-keyword">const</span> roadGraph = {
+  <span class="sql-string">"Hebbal"</span>:    { <span class="sql-string">"Mekhri"</span>:5, <span class="sql-string">"Yelahanka"</span>:12 },
+  <span class="sql-string">"Mekhri"</span>:    { <span class="sql-string">"Esteem Mall"</span>:3, <span class="sql-string">"Sadashivanagar"</span>:7 },
+  <span class="sql-string">"Sadashivanagar"</span>: { <span class="sql-string">"Malleshwaram"</span>:4 },
+  <span class="sql-string">"Malleshwaram"</span>:   { <span class="sql-string">"Majestic"</span>:6 },
+  <span class="sql-string">"Majestic"</span>:  { <span class="sql-string">"KR Market"</span>:2 }
+};
+<span class="sql-comment">// Edge weight = estimated travel time in minutes</span></pre>
+            </div>
+            <div class="concept-box">
+              <div class="concept-title">Adjacency Matrix — Signal Dependency</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">A matrix showing which lanes conflict — conflicting lanes cannot both be green simultaneously.</p>
+              <pre><span class="sql-comment">// Conflict matrix for a 4-lane intersection</span>
+<span class="sql-comment">//         N  E  S  W</span>
+<span class="sql-keyword">const</span> conflict = [
+  [0, 1, 0, 1],  <span class="sql-comment">// North conflicts with East, West</span>
+  [1, 0, 1, 0],  <span class="sql-comment">// East conflicts with North, South</span>
+  [0, 1, 0, 1],  <span class="sql-comment">// South conflicts with East, West</span>
+  [1, 0, 1, 0],  <span class="sql-comment">// West conflicts with North, South</span>
+];
+<span class="sql-comment">// 0 = safe together, 1 = conflict (cannot both be green)</span></pre>
+            </div>
+            <div class="concept-box">
+              <div class="concept-title">DFS — Detecting Deadlock / Cycles</div>
+              <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">Depth-First Search detects cycles in the signal dependency graph — if a cycle exists, deadlock is possible and AI breaks it.</p>
+              <pre><span class="sql-comment">// DFS cycle detection on signal graph</span>
+<span class="sql-keyword">function</span> hasCycle(graph) {
+  <span class="sql-keyword">let</span> visited={}, recStack={};
+  <span class="sql-keyword">function</span> dfs(v) {
+    visited[v]=true; recStack[v]=true;
+    <span class="sql-keyword">for</span> (let w of (graph[v]||[])) {
+      <span class="sql-keyword">if</span> (!visited[w] && dfs(w)) <span class="sql-keyword">return true</span>;
+      <span class="sql-keyword">if</span> (recStack[w]) <span class="sql-keyword">return true</span>; <span class="sql-comment">// cycle!</span>
+    }
+    recStack[v]=false; <span class="sql-keyword">return false</span>;
+  }
+  <span class="sql-keyword">for</span> (let v in graph) { <span class="sql-keyword">if</span>(!visited[v]&&dfs(v)) <span class="sql-keyword">return true</span>; }
+  <span class="sql-keyword">return false</span>;
+}</pre>
+              <table class="norm-table" style="margin-top:14px;">
+                <thead><tr><th>Graph Concept</th><th>Traffic Mapping</th><th>Algorithm Used</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="tag tag-blue">Vertex</span></td><td>Intersection / junction</td><td>—</td></tr>
+                  <tr><td><span class="tag tag-blue">Edge</span></td><td>Road between intersections</td><td>—</td></tr>
+                  <tr><td><span class="tag tag-yellow">Weight</span></td><td>Travel time / congestion</td><td>Dijkstra</td></tr>
+                  <tr><td><span class="tag tag-green">Path</span></td><td>Emergency vehicle route</td><td>Dijkstra / BFS</td></tr>
+                  <tr><td><span class="tag tag-red">Cycle</span></td><td>Signal deadlock</td><td>DFS</td></tr>
+                  <tr><td><span class="tag tag-purple">Degree</span></td><td>No. of roads at junction</td><td>Greedy ordering</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Edit</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ========================
+   DB
+======================== */
+const db = {
+  intersections:[], vehicles:[], emergency:[], logs:[],
+  iid:1, vid:1, eid:1, lid:1
+};
+
+/* ========================
+   HELPERS
+======================== */
+function pad(n,p,c='0'){return String(n).padStart(p,c);}
+function statusTag(s){
+  const map={
+    'Active':'tag-green','Maintenance':'tag-yellow','Offline':'tag-red',
+    'AI Adaptive':'tag-blue','Fixed Timer':'tag-yellow','Manual':'tag-red',
+    'Normal':'tag-blue','High':'tag-yellow','Emergency':'tag-red','Critical':'tag-red',
+    'Dispatched':'tag-yellow','Cleared':'tag-green','En Route':'tag-purple',
+    'Car':'tag-blue','Bike':'tag-green','Bus':'tag-purple','Truck':'tag-yellow','Auto':'tag-blue',
+    'Ambulance':'tag-red','Fire Engine':'tag-red','Police':'tag-purple','Disaster Response':'tag-yellow'
+  };
+  return `<span class="tag ${map[s]||'tag-blue'}">${s}</span>`;
+}
+function now(){
+  const d=new Date();
+  return d.toLocaleTimeString('en-IN',{hour12:false});
+}
+function toast(msg,type='success'){
+  const c=document.getElementById('toastContainer');
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  t.innerHTML=`<span>${type==='success'?'✅':'❌'}</span> ${msg}`;
+  c.appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const titles={'dashboard':'Dashboard','intersections':'Intersections','vehicles':'Vehicles',
+    'emergency':'Emergency Units','simulation':'Live Simulation','logs':'Event Logs',
+    'algorithms':'AI Algorithms','datastructs':'Data Structures','graphtheory':'Graph Theory'};
+  document.getElementById('pageTitle').textContent=titles[id]||id;
+  if(id==='intersections'){populateVehicleDropdowns();}
+  if(id==='vehicles'){populateVehicleDropdowns();}
+  if(id==='emergency'){populateEmergencyDropdowns();}
+  if(id==='simulation'){initSim();}
+  refreshDashboard();
+}
+function addLog(event, intersection, type, details){
+  const id='L'+pad(db.lid++,4);
+  const time=now();
+  db.logs.unshift({id,time,event,intersection,type,details});
+  document.getElementById('stat-logs').textContent=db.logs.length;
+  renderLogs();
+}
+function openModal(){document.getElementById('editModal').classList.add('open');}
+function closeModal(){document.getElementById('editModal').classList.remove('open');}
+document.getElementById('editModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+/* ========================
+   INTERSECTIONS
+======================== */
+function addIntersection(){
+  const name=document.getElementById('i-name').value.trim();
+  const zone=document.getElementById('i-zone').value;
+  const lanes=parseInt(document.getElementById('i-lanes').value)||4;
+  const mode=document.getElementById('i-mode').value;
+  const cycle=parseInt(document.getElementById('i-cycle').value)||60;
+  const status=document.getElementById('i-status').value;
+  if(!name){toast('Please enter a location name','error');return;}
+  const id='I'+pad(db.iid++,3);
+  db.intersections.push({id,name,zone,lanes,mode,cycle,status});
+  clearIntersectionForm();
+  renderIntersections();
+  addLog('Intersection added','—','Info',`${id} — ${name}`);
+  toast(`Intersection ${id} added`);
+}
+function clearIntersectionForm(){
+  ['i-name','i-lanes','i-cycle'].forEach(x=>document.getElementById(x).value='');
+}
+function renderIntersections(list){
+  list=list||db.intersections;
+  const tbody=document.getElementById('intersections-tbody');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">🚦</div><p>No intersections added</p></div></td></tr>`;return;}
+  tbody.innerHTML=list.map(i=>`<tr>
+    <td class="cell-id">${i.id}</td>
+    <td class="cell-name">${i.name}</td>
+    <td><span class="tag tag-purple">${i.zone}</span></td>
+    <td>${i.lanes}</td>
+    <td>${i.cycle}s</td>
+    <td>${statusTag(i.mode)}</td>
+    <td>${statusTag(i.status)}</td>
+    <td><div class="actions-cell">
+      <button class="btn btn-ghost btn-sm" onclick="editIntersection('${i.id}')">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteIntersection('${i.id}')">🗑️</button>
+    </div></td>
+  </tr>`).join('');
+}
+function deleteIntersection(id){
+  db.intersections=db.intersections.filter(i=>i.id!==id);
+  renderIntersections();
+  document.getElementById('stat-intersections').textContent=db.intersections.length;
+  addLog('Intersection removed',id,'Warning','Removed from system');
+  toast(`Intersection ${id} removed`,'error');
+}
+function editIntersection(id){
+  const i=db.intersections.find(x=>x.id===id);if(!i)return;
+  document.getElementById('modal-title').textContent=`Edit Intersection — ${i.id}`;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="form-grid">
+      <div class="form-group"><label>Location Name</label><input id="ei-name" value="${i.name}"/></div>
+      <div class="form-group"><label>Lanes</label><input type="number" id="ei-lanes" value="${i.lanes}"/></div>
+      <div class="form-group"><label>Cycle Time (s)</label><input type="number" id="ei-cycle" value="${i.cycle}"/></div>
+      <div class="form-group"><label>Mode</label>
+        <select id="ei-mode">${['AI Adaptive','Fixed Timer','Manual'].map(s=>`<option ${s===i.mode?'selected':''}>${s}</option>`).join('')}</select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="ei-status">${['Active','Maintenance','Offline'].map(s=>`<option ${s===i.status?'selected':''}>${s}</option>`).join('')}</select>
+      </div>
+    </div>`;
+  document.getElementById('modal-save-btn').onclick=()=>{
+    i.name=document.getElementById('ei-name').value;
+    i.lanes=parseInt(document.getElementById('ei-lanes').value)||4;
+    i.cycle=parseInt(document.getElementById('ei-cycle').value)||60;
+    i.mode=document.getElementById('ei-mode').value;
+    i.status=document.getElementById('ei-status').value;
+    renderIntersections();closeModal();
+    addLog('Intersection updated',i.id,'Info','Settings changed');
+    toast(`Intersection ${i.id} updated`);
+  };
+  openModal();
+}
+function searchIntersections(){
+  const q=document.getElementById('search-intersections').value.toLowerCase();
+  const filtered=db.intersections.filter(i=>i.name.toLowerCase().includes(q)||i.zone.toLowerCase().includes(q));
+  renderIntersections(filtered);
+}
+
+/* ========================
+   VEHICLES
+======================== */
+function populateVehicleDropdowns(){
+  const sel=document.getElementById('v-intersection');
+  if(!sel)return;
+  sel.innerHTML=`<option value="">-- Select Intersection --</option>`+db.intersections.map(i=>`<option value="${i.id}">${i.name}</option>`).join('');
+}
+function addVehicle(){
+  const num=document.getElementById('v-num').value.trim();
+  const type=document.getElementById('v-type').value;
+  const owner=document.getElementById('v-owner').value.trim();
+  const intId=document.getElementById('v-intersection').value;
+  const speed=parseInt(document.getElementById('v-speed').value)||40;
+  const priority=document.getElementById('v-priority').value;
+  if(!num||!owner){toast('Please fill all required fields','error');return;}
+  const id='V'+pad(db.vid++,3);
+  const intName=intId?(db.intersections.find(i=>i.id===intId)||{}).name||'—':'—';
+  db.vehicles.push({id,num,type,owner,intId,intName,speed,priority});
+  clearVehicleForm();renderVehicles();
+  document.getElementById('stat-vehicles').textContent=db.vehicles.length;
+  addLog('Vehicle registered',intName,'Info',`${id} — ${num} (${type})`);
+  toast(`Vehicle ${id} registered`);
+}
+function clearVehicleForm(){
+  ['v-num','v-owner','v-speed'].forEach(x=>document.getElementById(x).value='');
+}
+function renderVehicles(){
+  const tbody=document.getElementById('vehicles-tbody');
+  if(!db.vehicles.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">🚗</div><p>No vehicles registered</p></div></td></tr>`;return;}
+  tbody.innerHTML=db.vehicles.map(v=>`<tr>
+    <td class="cell-id">${v.id}</td>
+    <td class="cell-name">${v.num}</td>
+    <td>${statusTag(v.type)}</td>
+    <td>${v.owner}</td>
+    <td>${v.intName}</td>
+    <td>${v.speed} km/h</td>
+    <td>${statusTag(v.priority)}</td>
+    <td><div class="actions-cell">
+      <button class="btn btn-danger btn-sm" onclick="deleteVehicle('${v.id}')">🗑️</button>
+    </div></td>
+  </tr>`).join('');
+}
+function deleteVehicle(id){
+  db.vehicles=db.vehicles.filter(v=>v.id!==id);
+  renderVehicles();
+  document.getElementById('stat-vehicles').textContent=db.vehicles.length;
+  addLog('Vehicle removed',id,'Warning','Removed from system');
+  toast(`Vehicle ${id} removed`,'error');
+}
+
+/* ========================
+   EMERGENCY
+======================== */
+function populateEmergencyDropdowns(){
+  const sel=document.getElementById('e-intersection');
+  if(!sel)return;
+  sel.innerHTML=`<option value="">-- Intersection --</option>`+db.intersections.map(i=>`<option value="${i.id}">${i.name}</option>`).join('');
+}
+function addEmergency(){
+  const callsign=document.getElementById('e-callsign').value.trim();
+  const type=document.getElementById('e-type').value;
+  const from=document.getElementById('e-from').value.trim();
+  const to=document.getElementById('e-to').value.trim();
+  const priority=document.getElementById('e-priority').value;
+  const intId=document.getElementById('e-intersection').value;
+  const desc=document.getElementById('e-desc').value.trim();
+  if(!callsign||!from||!to){toast('Please fill required fields','error');return;}
+  const id='E'+pad(db.eid++,3);
+  const intName=intId?(db.intersections.find(i=>i.id===intId)||{}).name||'—':'—';
+  db.emergency.push({id,callsign,type,from,to,priority,intId,intName,desc,status:'Dispatched'});
+  clearEmergencyForm();renderEmergency();
+  document.getElementById('stat-emergency').textContent=db.emergency.length;
+  addLog(`${type} dispatched`,intName,'Emergency',`${callsign}: ${from} → ${to}`);
+  toast(`${callsign} dispatched — all signals cleared!`,'success');
+}
+function clearEmergencyForm(){
+  ['e-callsign','e-from','e-to','e-desc'].forEach(x=>document.getElementById(x).value='');
+}
+function renderEmergency(){
+  const tbody=document.getElementById('emergency-tbody');
+  if(!db.emergency.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-icon">🚨</div><p>No emergency units dispatched</p></div></td></tr>`;return;}
+  tbody.innerHTML=db.emergency.map(e=>`<tr>
+    <td class="cell-id">${e.id}</td>
+    <td class="cell-name">${e.callsign}</td>
+    <td>${statusTag(e.type)}</td>
+    <td style="font-size:12px;">${e.from} → ${e.to}</td>
+    <td>${e.intName}</td>
+    <td>${statusTag(e.priority)}</td>
+    <td>${statusTag(e.status)}</td>
+    <td><div class="actions-cell">
+      <button class="btn btn-success btn-sm" onclick="clearEmergencyUnit('${e.id}')">✔ Clear</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteEmergency('${e.id}')">🗑️</button>
+    </div></td>
+  </tr>`).join('');
+}
+function clearEmergencyUnit(id){
+  const e=db.emergency.find(x=>x.id===id);if(e)e.status='Cleared';
+  renderEmergency();
+  addLog('Emergency cleared',e.intName,'Info',`${e.callsign} route cleared`);
+  toast(`${e.callsign} route cleared`);
+}
+function deleteEmergency(id){
+  db.emergency=db.emergency.filter(e=>e.id!==id);
+  renderEmergency();
+  document.getElementById('stat-emergency').textContent=db.emergency.length;
+  toast(`Emergency unit ${id} removed`,'error');
+}
+
+/* ========================
+   LOGS
+======================== */
+function renderLogs(){
+  const tbody=document.getElementById('logs-tbody');
+  if(!db.logs.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><p>No events logged</p></div></td></tr>`;return;}
+  const typeTag={
+    'Info':'tag-blue','Warning':'tag-yellow','Emergency':'tag-red','Signal':'tag-green'
+  };
+  tbody.innerHTML=db.logs.map(l=>`<tr>
+    <td class="cell-id">${l.id}</td>
+    <td style="font-size:12px;color:var(--text2)">${l.time}</td>
+    <td class="cell-name">${l.event}</td>
+    <td>${l.intersection}</td>
+    <td><span class="tag ${typeTag[l.type]||'tag-blue'}">${l.type}</span></td>
+    <td style="font-size:12px;color:var(--text2)">${l.details}</td>
+  </tr>`).join('');
+}
+function clearLogs(){
+  db.logs=[];db.lid=1;
+  document.getElementById('stat-logs').textContent=0;
+  renderLogs();toast('Logs cleared','error');
+}
+
+/* ========================
+   DASHBOARD
+======================== */
+function refreshDashboard(){
+  document.getElementById('stat-intersections').textContent=db.intersections.length;
+  document.getElementById('stat-vehicles').textContent=db.vehicles.length;
+  document.getElementById('stat-emergency').textContent=db.emergency.length;
+  document.getElementById('stat-logs').textContent=db.logs.length;
+
+  const it=document.getElementById('dash-intersections-tbody');
+  it.innerHTML=db.intersections.slice(-4).reverse().map(i=>`<tr>
+    <td class="cell-id">${i.id}</td>
+    <td class="cell-name">${i.name}</td>
+    <td>${statusTag(i.mode)}</td>
+    <td>${statusTag(i.status)}</td>
+  </tr>`).join('')||`<tr><td colspan="4"><div class="empty"><p>No intersections yet</p></div></td></tr>`;
+
+  const lt=document.getElementById('dash-logs-tbody');
+  lt.innerHTML=db.logs.slice(0,5).map(l=>`<tr>
+    <td style="font-size:11px;color:var(--text2)">${l.time}</td>
+    <td>${l.event}</td>
+    <td><span class="tag ${l.type==='Emergency'?'tag-red':l.type==='Warning'?'tag-yellow':'tag-blue'}">${l.type}</span></td>
+  </tr>`).join('')||`<tr><td colspan="3"><div class="empty"><p>No events yet</p></div></td></tr>`;
+
+  const et=document.getElementById('dash-emg-tbody');
+  const active=db.emergency.filter(e=>e.status!=='Cleared');
+  et.innerHTML=active.map(e=>`<tr>
+    <td class="cell-id">${e.id}</td>
+    <td>${statusTag(e.type)}</td>
+    <td style="font-size:12px">${e.from} → ${e.to}</td>
+    <td>${statusTag(e.priority)}</td>
+    <td>${statusTag(e.status)}</td>
+  </tr>`).join('')||`<tr><td colspan="5"><div class="empty"><p>No active emergency units</p></div></td></tr>`;
+}
+
+/* ========================
+   SIMULATION
+======================== */
+const SIM={running:false,timer:null,tick:0,emergency:false,emergencyTimer:0};
+const SIGNALS=['North','East','South','West'];
+let sigState={North:{s:'red',t:0},East:{s:'green',t:20},South:{s:'red',t:0},West:{s:'red',t:0}};
+let currentGreen='East';
+let phaseTick=20;
+const PHASE=25;
+let vehicles_sim=[];let vsid=0;
+const colors_sim=['#00d4ff','#9b7cff','#00e5a0','#ffb347','#ff4d6a','#8ba3c7'];
+
+function initSim(){
+  buildSignalsRow();
+  if(!SIM.running) drawSimCanvas();
+}
+function buildSignalsRow(){
+  const row=document.getElementById('signals-row');
+  if(!row)return;
+  row.innerHTML=SIGNALS.map(d=>`
+    <div class="signal-box" id="sig-box-${d}">
+      <div class="signal-dir">${d}</div>
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:center;background:#0a0e1a;padding:8px;border-radius:8px;">
+        <div class="signal-light light-red" id="sl-${d}-red"></div>
+        <div class="signal-light light-yellow" id="sl-${d}-yellow"></div>
+        <div class="signal-light light-green" id="sl-${d}-green"></div>
+      </div>
+      <div class="signal-timer" id="sl-${d}-timer">—</div>
+    </div>`).join('');
+}
+function updateSignalUI(){
+  SIGNALS.forEach(d=>{
+    const s=sigState[d].s;
+    ['red','yellow','green'].forEach(c=>{
+      const el=document.getElementById(`sl-${d}-${c}`);
+      if(!el)return;
+      el.classList.toggle('on', s===c);
+    });
+    const tel=document.getElementById(`sl-${d}-timer`);
+    if(tel) tel.textContent=sigState[d].t>0?sigState[d].t+'s':'—';
+  });
+}
+function startSim(){
+  if(SIM.running)return;
+  SIM.running=true;
+  addLog('Simulation started','—','Info','AI traffic control active');
+  SIM.timer=setInterval(simStep,500);
+}
+function stopSim(){
+  SIM.running=false;
+  clearInterval(SIM.timer);
+  addLog('Simulation stopped','—','Info','System paused');
+}
+function triggerEmergencySim(){
+  const dirs=['North','East','South','West'];
+  const dir=dirs[Math.floor(Math.random()*4)];
+  SIM.emergency=true;SIM.emergencyTimer=12;
+  SIGNALS.forEach(d=>{
+    sigState[d].s=d===dir?'green':'red';
+    sigState[d].t=d===dir?12:0;
+  });
+  currentGreen=dir;phaseTick=12;
+  addLog('Emergency vehicle approaching',dir,'Emergency',`All signals cleared for ${dir} lane`);
+  toast(`🚨 Emergency! ${dir} lane cleared`,'success');
+  updateSignalUI();
+  if(!SIM.running){drawSimCanvas();}
+}
+function simStep(){
+  SIM.tick++;phaseTick=Math.max(0,phaseTick-1);
+  if(SIM.emergency){
+    SIM.emergencyTimer--;
+    if(SIM.emergencyTimer<=0){
+      SIM.emergency=false;
+      addLog('Emergency cleared','—','Signal','Normal AI control resumed');
+      toast('Emergency cleared — resuming AI control');
+    }
+  }
+  if(phaseTick<=0&&!SIM.emergency){
+    const idx=SIGNALS.indexOf(currentGreen);
+    const prev=currentGreen;
+    sigState[prev].s='red';sigState[prev].t=0;
+    currentGreen=SIGNALS[(idx+1)%4];
+    phaseTick=PHASE;
+    sigState[currentGreen].s='green';sigState[currentGreen].t=PHASE;
+    if(Math.random()<0.3){
+      addLog('AI optimized signal',currentGreen,'Signal',`Phase extended for ${currentGreen}`);
+    }
+  }
+  SIGNALS.forEach(d=>{if(sigState[d].s==='green')sigState[d].t=phaseTick;});
+  if(SIM.tick%3===0&&vehicles_sim.length<18) spawnSimVehicle();
+  vehicles_sim.forEach(v=>moveSimVehicle(v));
+  vehicles_sim=vehicles_sim.filter(v=>!outOfSimBounds(v));
+  updateSignalUI();
+  drawSimCanvas();
+}
+const CW=560,CH=400,CCX=280,CCY=200,RD=50,LW=16;
+function spawnSimVehicle(){
+  const dirs=['N','E','S','W'];
+  const d=dirs[Math.floor(Math.random()*4)];
+  let x,y,vx,vy;
+  if(d==='N'){x=CCX-LW*0.5;y=5;vx=0;vy=1;}
+  else if(d==='S'){x=CCX+LW*0.5;y=CH-5;vx=0;vy=-1;}
+  else if(d==='W'){x=5;y=CCY+LW*0.5;vx=1;vy=0;}
+  else{x=CW-5;y=CCY-LW*0.5;vx=-1;vy=0;}
+  const dirMap={N:'North',E:'East',S:'South',W:'West'};
+  vehicles_sim.push({id:vsid++,x,y,vx,vy,dir:dirMap[d],speed:1+Math.random(),stopped:false,color:colors_sim[Math.floor(Math.random()*6)]});
+}
+function stopLinePos(dir){
+  if(dir==='North')return{ax:'y',val:CCY-RD/2-5};
+  if(dir==='South')return{ax:'y',val:CCY+RD/2+5};
+  if(dir==='West') return{ax:'x',val:CCX-RD/2-5};
+  return{ax:'x',val:CCX+RD/2+5};
+}
+function nearStop(v){
+  const p=stopLinePos(v.dir);
+  if(p.ax==='y') return v.vy>0?(v.y<p.val&&v.y>p.val-70):(v.y>p.val&&v.y<p.val+70);
+  return v.vx>0?(v.x<p.val&&v.x>p.val-70):(v.x>p.val&&v.x<p.val+70);
+}
+function atStop(v){
+  const p=stopLinePos(v.dir);
+  if(p.ax==='y') return v.vy>0?v.y>=p.val-1:v.y<=p.val+1;
+  return v.vx>0?v.x>=p.val-1:v.x<=p.val+1;
+}
+function inInt(v){return v.x>CCX-RD/2&&v.x<CCX+RD/2&&v.y>CCY-RD/2&&v.y<CCY+RD/2;}
+function moveSimVehicle(v){
+  v.stopped=false;
+  const sig=sigState[v.dir];
+  if(!inInt(v)&&nearStop(v)&&sig.s!=='green'){
+    if(atStop(v)){v.stopped=true;return;}
+  }
+  v.x+=v.vx*v.speed;v.y+=v.vy*v.speed;
+}
+function outOfSimBounds(v){return v.x<-30||v.x>CW+30||v.y<-30||v.y>CH+30;}
+function drawSimCanvas(){
+  const canvas=document.getElementById('sim-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,CW,CH);
+  ctx.fillStyle='#0d1520';ctx.fillRect(0,0,CW,CH);
+  ctx.fillStyle='#1a2a1a';
+  ctx.fillRect(0,0,CCX-RD/2,CCY-RD/2);
+  ctx.fillRect(CCX+RD/2,0,CW,CCY-RD/2);
+  ctx.fillRect(0,CCY+RD/2,CCX-RD/2,CH);
+  ctx.fillRect(CCX+RD/2,CCY+RD/2,CW,CH);
+  ctx.fillStyle='#333';
+  ctx.fillRect(CCX-RD/2,0,RD,CH);
+  ctx.fillRect(0,CCY-RD/2,CW,RD);
+  ctx.fillStyle='#1a1a2e';
+  ctx.fillRect(CCX-RD/2,CCY-RD/2,RD,RD);
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.setLineDash([10,8]);
+  ctx.beginPath();ctx.moveTo(CCX,0);ctx.lineTo(CCX,CCY-RD/2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(CCX,CCY+RD/2);ctx.lineTo(CCX,CH);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,CCY);ctx.lineTo(CCX-RD/2,CCY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(CCX+RD/2,CCY);ctx.lineTo(CW,CCY);ctx.stroke();
+  ctx.setLineDash([]);
+  const sigPos=[
+    {d:'North',x:CCX+RD/2+10,y:CCY-RD/2-10},
+    {d:'South',x:CCX-RD/2-10,y:CCY+RD/2+10},
+    {d:'East', x:CCX+RD/2+10,y:CCY+RD/2+10},
+    {d:'West', x:CCX-RD/2-10,y:CCY-RD/2-10},
+  ];
+  sigPos.forEach(({d,x,y})=>{
+    const s=sigState[d].s;
+    ctx.fillStyle='#222';
+    ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x-6,y-16,12,30,3);else ctx.rect(x-6,y-16,12,30);ctx.fill();
+    [[`red`,'#ff4d6a'],[`yellow`,'#ffb347'],[`green`,'#00e5a0']].forEach(([c,col],i)=>{
+      ctx.beginPath();ctx.arc(x,y-10+i*10,4,0,Math.PI*2);
+      ctx.fillStyle=s===c?col:'#1a1a2e';
+      if(s===c){ctx.shadowBlur=8;ctx.shadowColor=col;}else{ctx.shadowBlur=0;}
+      ctx.fill();ctx.shadowBlur=0;
+    });
+  });
+  vehicles_sim.forEach(v=>{
+    ctx.save();
+    const angle=v.vx>0?0:v.vx<0?Math.PI:v.vy>0?Math.PI/2:-Math.PI/2;
+    ctx.translate(v.x,v.y);ctx.rotate(angle);
+    ctx.fillStyle=v.stopped?'#ffb347':v.color;
+    if(ctx.roundRect)ctx.roundRect(-9,-5,18,10,2);else ctx.rect(-9,-5,18,10);
+    ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillRect(6,-4,2,8);
+    ctx.restore();
+  });
+  ctx.fillStyle='rgba(0,212,255,0.07)';ctx.fillRect(0,0,CW,18);
+  ctx.fillStyle='#8ba3c7';ctx.font='10px DM Sans,sans-serif';
+  ctx.fillText(`AI Traffic Control  |  Tick: ${SIM.tick}  |  Vehicles: ${vehicles_sim.length}  |  Phase: ${currentGreen} GREEN`,8,12);
+}
+
+/* ========================
+   INIT
+======================== */
+window.onload=()=>{
+  refreshDashboard();
+  renderIntersections();renderVehicles();renderEmergency();renderLogs();
+  buildSignalsRow();drawSimCanvas();
+  addLog('System initialized','—','Info','TrafficAI v1.0 ready');
+};
+</script>
+<script>
+(function(){
+  const canvas=document.getElementById('circuit-canvas');
+  const ctx=canvas.getContext('2d');
+  let W,H,nodes,pulses;
+  const GRID=80,COLS=16,ROWS=12;
+  function resize(){
+    W=canvas.width=window.innerWidth;
+    H=canvas.height=window.innerHeight;
+    buildGraph();
+  }
+  function buildGraph(){
+    nodes=[];pulses=[];
+    const cols=Math.ceil(W/GRID)+1, rows=Math.ceil(H/GRID)+1;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        if(Math.random()<0.35){
+          nodes.push({x:c*GRID,y:r*GRID,r:Math.random()<0.15?2.5:1.2,bright:Math.random()});
+        }
+      }
+    }
+    for(let i=0;i<18;i++){
+      const n=nodes[Math.floor(Math.random()*nodes.length)];
+      if(!n)continue;
+      const horiz=Math.random()<0.5;
+      const len=(2+Math.floor(Math.random()*4))*GRID;
+      pulses.push({x:n.x,y:n.y,dx:horiz?1:0,dy:horiz?0:1,len,progress:0,speed:0.4+Math.random()*0.6,alpha:0});
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const cols=Math.ceil(W/GRID)+1, rows=Math.ceil(H/GRID)+1;
+    ctx.strokeStyle='rgba(0,212,255,0.08)';
+    ctx.lineWidth=1;
+    for(let c=0;c<cols;c++){
+      ctx.beginPath();ctx.moveTo(c*GRID,0);ctx.lineTo(c*GRID,H);ctx.stroke();
+    }
+    for(let r=0;r<rows;r++){
+      ctx.beginPath();ctx.moveTo(0,r*GRID);ctx.lineTo(W,r*GRID);ctx.stroke();
+    }
+    nodes.forEach(n=>{
+      const pulse=0.5+0.5*Math.sin(Date.now()*0.001+n.bright*6);
+      ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(0,212,255,${0.2+pulse*0.5})`;
+      ctx.fill();
+    });
+    pulses.forEach(p=>{
+      p.progress+=p.speed;
+      if(p.progress>p.len+20){
+        p.progress=0;
+        const n=nodes[Math.floor(Math.random()*nodes.length)];
+        if(n){p.x=n.x;p.y=n.y;p.dx=Math.random()<0.5?1:0;p.dy=p.dx?0:1;}
+      }
+      const head={x:p.x+p.dx*p.progress,y:p.y+p.dy*p.progress};
+      const tail={x:p.x+p.dx*Math.max(0,p.progress-p.len),y:p.y+p.dy*Math.max(0,p.progress-p.len)};
+      const grad=ctx.createLinearGradient(tail.x,tail.y,head.x,head.y);
+      grad.addColorStop(0,'rgba(0,212,255,0)');
+      grad.addColorStop(0.7,'rgba(0,212,255,0.15)');
+      grad.addColorStop(1,'rgba(0,229,160,0.9)');
+      ctx.beginPath();ctx.moveTo(tail.x,tail.y);ctx.lineTo(head.x,head.y);
+      ctx.strokeStyle=grad;ctx.lineWidth=1.5;ctx.stroke();
+      ctx.beginPath();ctx.arc(head.x,head.y,2.5,0,Math.PI*2);
+      ctx.fillStyle='rgba(0,229,160,0.95)';ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',resize);
+  resize();draw();
+})();
+</script>
+</body>
+</html>
